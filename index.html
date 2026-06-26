@@ -42,6 +42,13 @@
       background-size: 20px 20px;
       background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
     }
+    .palette-scroll {
+      max-height: 8.5rem;
+      overflow-y: auto;
+    }
+    .palette-swatch:hover .palette-delete {
+      opacity: 1;
+    }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-full overflow-hidden flex flex-col">
@@ -130,27 +137,34 @@
             </button>
           </div>
 
-          <!-- Color Swatches & Picker -->
-          <div class="space-y-2">
+          <!-- Color Swatches, Picker & Palette -->
+          <div class="space-y-3">
             <label class="text-xs text-gray-400 flex justify-between">
-              <span>Color Swatch</span>
+              <span>Active Color</span>
               <span id="color-hex" class="mono text-indigo-400">#6366f1</span>
             </label>
-            <div class="grid grid-cols-5 gap-1.5">
-              <button onclick="setBrushColor('#f43f5e')" class="w-8 h-8 rounded bg-rose-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#10b981')" class="w-8 h-8 rounded bg-emerald-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#3b82f6')" class="w-8 h-8 rounded bg-blue-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#eab308')" class="w-8 h-8 rounded bg-yellow-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#6366f1')" class="w-8 h-8 rounded bg-indigo-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#ffffff')" class="w-8 h-8 rounded bg-white border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#a855f7')" class="w-8 h-8 rounded bg-purple-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#f97316')" class="w-8 h-8 rounded bg-orange-500 border border-gray-700 hover:scale-105 transition"></button>
-              <button onclick="setBrushColor('#06b6d4')" class="w-8 h-8 rounded bg-cyan-500 border border-gray-700 hover:scale-105 transition"></button>
-              <!-- Custom Picker Container -->
-              <div class="relative w-8 h-8 rounded border border-gray-700 overflow-hidden cursor-pointer hover:scale-105 transition">
+            <div class="flex items-center gap-2">
+              <div class="relative w-10 h-10 rounded-lg border border-gray-700 overflow-hidden cursor-pointer hover:scale-105 transition" title="Choose a custom color">
                 <input type="color" id="brush-color-picker" value="#6366f1" oninput="setBrushColor(this.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
-                <div class="w-full h-full bg-gradient-to-tr from-indigo-500 to-pink-500"></div>
+                <div id="active-color-preview" class="w-full h-full" style="background:#6366f1"></div>
               </div>
+              <button onclick="pickColorFromScreen()" class="flex-1 py-2 bg-gray-950 hover:bg-gray-800 border border-gray-800 text-gray-200 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5" title="Pick a color from the page when your browser supports it">
+                <i data-lucide="pipette" class="w-3.5 h-3.5"></i> Color Picker
+              </button>
+              <button onclick="addCurrentColorToPalette()" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5" title="Save the active color to your palette">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add
+              </button>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-gray-400">Palette</span>
+                <span id="palette-count" class="mono text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded">0 colors</span>
+              </div>
+              <div id="palette-container" class="palette-scroll grid grid-cols-5 gap-1.5 pr-1">
+                <!-- User palette colors render here with unlimited scrollable spaces -->
+              </div>
+              <p class="text-[10px] text-gray-500 mt-1.5">Click a palette color to use it. Hover and tap × to delete it.</p>
             </div>
           </div>
 
@@ -231,8 +245,16 @@
               <input type="range" id="ref-opacity-slider" min="0" max="100" value="50" oninput="updateRefOpacity(this.value)" class="w-full accent-indigo-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer">
             </div>
 
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs text-gray-400">
+                <span>Reference Size</span>
+                <span id="ref-scale-val" class="mono">100%</span>
+              </div>
+              <input type="range" id="ref-scale-slider" min="10" max="400" value="100" oninput="updateRefScale(this.value)" class="w-full accent-indigo-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+            </div>
+
             <p class="text-[10px] text-gray-500 leading-relaxed italic border-t border-gray-800/60 pt-2">
-              💡 <strong>Interaction Hint:</strong> Click & drag the background reference image directly on the canvas to move it. Scroll your mouse wheel or pinch to resize.
+              💡 <strong>Interaction Hint:</strong> Click & drag the background reference image directly on the canvas to move it. In Ref Edit mode, scroll your mouse wheel over the canvas to resize the reference image instead of zooming the workspace.
             </p>
           </div>
         </div>
@@ -546,6 +568,7 @@ function lerp(a, b, t) {
     let isDrawing = false;
     let brushColor = '#6366f1';
     let brushSize = 8;
+    let colorPalette = ['#f43f5e', '#10b981', '#3b82f6', '#eab308', '#6366f1', '#ffffff', '#a855f7', '#f97316', '#06b6d4'];
     let currentStroke = null;
 
     // Shape Drawing variables
@@ -606,6 +629,7 @@ function lerp(a, b, t) {
       updatePlayheadVisuals();
       
       // Select first tool style parameters visually
+      renderPalette();
       setBrushColor(brushColor);
       updateBrushSize(brushSize);
 
@@ -679,12 +703,70 @@ function lerp(a, b, t) {
       document.getElementById('status-current-tool').innerText = tool === 'brush' ? "Smooth Freehand Brush" : "Eraser Stroke Tool";
     }
 
+    function normalizeHexColor(hex) {
+      if (!hex) return brushColor;
+      if (hex.startsWith('rgb')) {
+        const parts = hex.match(/\d+/g).slice(0, 3).map(Number);
+        return '#' + parts.map(v => v.toString(16).padStart(2, '0')).join('');
+      }
+      return hex.toLowerCase();
+    }
+
     function setBrushColor(hex) {
-      brushColor = hex;
-      document.getElementById('color-hex').innerText = hex;
-      document.getElementById('shape-color-text').innerText = hex;
-      document.getElementById('shape-color-preview').style.backgroundColor = hex;
-      document.getElementById('brush-color-picker').value = hex;
+      brushColor = normalizeHexColor(hex);
+      document.getElementById('color-hex').innerText = brushColor;
+      document.getElementById('shape-color-text').innerText = brushColor;
+      document.getElementById('shape-color-preview').style.backgroundColor = brushColor;
+      document.getElementById('active-color-preview').style.backgroundColor = brushColor;
+      document.getElementById('brush-color-picker').value = brushColor;
+    }
+
+    async function pickColorFromScreen() {
+      if ('EyeDropper' in window) {
+        try {
+          const result = await new EyeDropper().open();
+          setBrushColor(result.sRGBHex);
+          document.getElementById('status-helper-msg').innerText = `🎨 Picked ${result.sRGBHex}. Use Add to save it to your palette.`;
+        } catch (err) {
+          document.getElementById('status-helper-msg').innerText = 'Color picking cancelled.';
+        }
+        return;
+      }
+      document.getElementById('status-helper-msg').innerText = 'Your browser does not support the EyeDropper API. Use the color input instead.';
+      document.getElementById('brush-color-picker').click();
+    }
+
+    function addCurrentColorToPalette() {
+      colorPalette.push(brushColor);
+      renderPalette();
+      document.getElementById('status-helper-msg').innerText = `🎨 Added ${brushColor} to your palette.`;
+    }
+
+    function deletePaletteColor(index) {
+      colorPalette.splice(index, 1);
+      renderPalette();
+    }
+
+    function renderPalette() {
+      const paletteContainer = document.getElementById('palette-container');
+      const paletteCount = document.getElementById('palette-count');
+      paletteContainer.innerHTML = '';
+      paletteCount.innerText = `${colorPalette.length} color${colorPalette.length === 1 ? '' : 's'}`;
+
+      colorPalette.forEach((color, index) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'palette-swatch relative w-8 h-8 rounded border border-gray-700 hover:scale-105 transition overflow-hidden';
+        swatch.innerHTML = `
+          <button type="button" class="w-full h-full" style="background:${color}" title="Use ${color}" aria-label="Use ${color}"></button>
+          <button type="button" class="palette-delete absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gray-950/90 text-rose-300 border border-rose-900/60 text-[10px] leading-none opacity-0 transition" title="Delete ${color}" aria-label="Delete ${color}">×</button>
+        `;
+        swatch.querySelector('button:first-child').addEventListener('click', () => setBrushColor(color));
+        swatch.querySelector('.palette-delete').addEventListener('click', (event) => {
+          event.stopPropagation();
+          deletePaletteColor(index);
+        });
+        paletteContainer.appendChild(swatch);
+      });
     }
 
     function updateBrushSize(size) {
@@ -733,6 +815,15 @@ function lerp(a, b, t) {
     // --- VIEWPORT MOUSE ACTIONS (PAN & ZOOM & TRANSFORM) ---
     function onCanvasWheel(e) {
       e.preventDefault();
+
+      if (currentMode === 'ref' && referenceImage) {
+        const scaleChange = e.deltaY < 0 ? 1.06 : 0.94;
+        referenceImage.scale = Math.max(0.1, Math.min(4.0, referenceImage.scale * scaleChange));
+        syncRefScaleControls();
+        renderAll();
+        return;
+      }
+
       const zoomIntensity = 0.05;
       
       // Calculate cursor position in relative space before scaling
@@ -1393,6 +1484,7 @@ function lerp(a, b, t) {
           document.getElementById('ref-properties').classList.remove('hidden');
           document.getElementById('ref-opacity-slider').value = 50;
           document.getElementById('ref-opacity-val').innerText = '50%';
+          syncRefScaleControls();
           renderAll();
         };
         img.src = e.target.result;
@@ -1405,6 +1497,19 @@ function lerp(a, b, t) {
       referenceImage.opacity = parseFloat(val) / 100;
       document.getElementById('ref-opacity-val').innerText = `${val}%`;
       renderAll();
+    }
+
+    function updateRefScale(val) {
+      if (!referenceImage) return;
+      referenceImage.scale = Math.max(0.1, Math.min(4.0, parseFloat(val) / 100));
+      syncRefScaleControls();
+      renderAll();
+    }
+
+    function syncRefScaleControls() {
+      const percent = Math.round(referenceImage.scale * 100);
+      document.getElementById('ref-scale-slider').value = percent;
+      document.getElementById('ref-scale-val').innerText = `${percent}%`;
     }
 
     function clearReferenceImage() {
