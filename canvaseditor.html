@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnimateJS Studio - 2D Canvas Drawing & Animation Editor</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+    /* Checkerboard background for transparency */
+    .checkerboard {
+      background-color: #111827;
+      background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), 
+                        linear-gradient(-45deg, #1f2937 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #1f2937 75%), 
+                        linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 h-full overflow-hidden flex flex-col">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="bg-indigo-600 p-2 rounded-lg text-white">
+        <i data-lucide="sparkles" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          AnimateJS Studio 
+          <span class="text-xs font-semibold px-2 py-0.5 bg-indigo-950 text-indigo-400 border border-indigo-800 rounded">2D Game Asset Engine</span>
+        </h1>
+        <p class="text-xs text-gray-400">Design, draw, and animate vectors directly to JS-ready code</p>
+      </div>
+    </div>
+
+    <!-- Quick Actions / Menu -->
+    <div class="flex items-center space-x-3">
+      <button onclick="openImportModal()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 font-medium rounded-lg border border-gray-700 transition">
+        <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+        Import JSON
+      </button>
+      <button onclick="exportData()" class="flex items-center gap-1.5 px-3.5 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-lg shadow-indigo-900/30 transition">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        Export Animation
+      </button>
+      <button onclick="openHelpModal()" class="p-1.5 text-gray-400 hover:text-white bg-gray-800 rounded-lg border border-gray-700 transition" title="Help Guide">
+        <i data-lucide="help-circle" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Wrapper -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- Left Sidebar: Modes & Drawing Tools -->
+    <aside class="w-64 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+      
+      <!-- MODE SELECTOR -->
+      <div class="p-4 border-b border-gray-800">
+        <label class="text-xs font-semibold tracking-wider text-gray-400 uppercase block mb-3">Workspace Mode</label>
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Draw Mode -->
+          <button id="mode-draw-btn" onclick="setMode('draw')" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-600 bg-indigo-950/40 text-indigo-400 transition">
+            <i data-lucide="pencil" class="w-5 h-5 mb-1"></i>
+            <span class="text-xs font-semibold">Draw Mode</span>
+          </button>
+          
+          <!-- Shape Mode -->
+          <button id="mode-shape-btn" onclick="setMode('shape')" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-transparent bg-gray-800/50 text-gray-400 hover:text-gray-200 transition">
+            <i data-lucide="shapes" class="w-5 h-5 mb-1"></i>
+            <span class="text-xs font-semibold">Shape Mode</span>
+          </button>
+
+          <!-- Reference Edit Mode -->
+          <button id="mode-ref-btn" onclick="setMode('ref')" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-transparent bg-gray-800/50 text-gray-400 hover:text-gray-200 transition">
+            <i data-lucide="image" class="w-5 h-5 mb-1"></i>
+            <span class="text-xs font-semibold">Ref Edit</span>
+          </button>
+
+          <!-- Animation Mode -->
+          <button id="mode-anim-btn" onclick="setMode('anim')" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-transparent bg-gray-800/50 text-gray-400 hover:text-gray-200 transition">
+            <i data-lucide="film" class="w-5 h-5 mb-1"></i>
+            <span class="text-xs font-semibold">Animation</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- DYNAMIC CONTROLS PANEL (Updates based on mode) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-5" id="controls-container">
+        
+        <!-- SECTION: BRUSH & COLOR (Visible in Draw Mode) -->
+        <div id="draw-settings" class="space-y-4">
+          <h3 class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Brush Parameters</h3>
+          
+          <!-- Tool Selection -->
+          <div class="flex gap-1 bg-gray-950 p-1 rounded-lg border border-gray-800">
+            <button id="tool-brush-btn" onclick="setDrawingTool('brush')" class="flex-1 py-1.5 text-xs font-medium text-center rounded bg-gray-800 text-white">
+              Brush
+            </button>
+            <button id="tool-eraser-btn" onclick="setDrawingTool('eraser')" class="flex-1 py-1.5 text-xs font-medium text-center rounded text-gray-400 hover:text-white">
+              Eraser
+            </button>
+          </div>
+
+          <!-- Color Swatches & Picker -->
+          <div class="space-y-2">
+            <label class="text-xs text-gray-400 flex justify-between">
+              <span>Color Swatch</span>
+              <span id="color-hex" class="mono text-indigo-400">#6366f1</span>
+            </label>
+            <div class="grid grid-cols-5 gap-1.5">
+              <button onclick="setBrushColor('#f43f5e')" class="w-8 h-8 rounded bg-rose-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#10b981')" class="w-8 h-8 rounded bg-emerald-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#3b82f6')" class="w-8 h-8 rounded bg-blue-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#eab308')" class="w-8 h-8 rounded bg-yellow-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#6366f1')" class="w-8 h-8 rounded bg-indigo-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#ffffff')" class="w-8 h-8 rounded bg-white border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#a855f7')" class="w-8 h-8 rounded bg-purple-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#f97316')" class="w-8 h-8 rounded bg-orange-500 border border-gray-700 hover:scale-105 transition"></button>
+              <button onclick="setBrushColor('#06b6d4')" class="w-8 h-8 rounded bg-cyan-500 border border-gray-700 hover:scale-105 transition"></button>
+              <!-- Custom Picker Container -->
+              <div class="relative w-8 h-8 rounded border border-gray-700 overflow-hidden cursor-pointer hover:scale-105 transition">
+                <input type="color" id="brush-color-picker" value="#6366f1" oninput="setBrushColor(this.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                <div class="w-full h-full bg-gradient-to-tr from-indigo-500 to-pink-500"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Brush Size -->
+          <div class="space-y-2">
+            <div class="flex justify-between text-xs text-gray-400">
+              <span>Brush Size</span>
+              <span id="brush-size-val" class="mono">8px</span>
+            </div>
+            <input type="range" id="brush-size-slider" min="1" max="50" value="8" oninput="updateBrushSize(this.value)" class="w-full accent-indigo-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+
+          <!-- Smoothness Coefficient -->
+          <div class="space-y-2">
+            <div class="flex justify-between text-xs text-gray-400">
+              <span>Point Reduction</span>
+              <span id="simplify-val" class="mono">1.2px</span>
+            </div>
+            <input type="range" id="simplify-slider" min="0.1" max="5.0" step="0.1" value="1.2" class="w-full accent-indigo-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+            <p class="text-[10px] text-gray-500">Higher values produce cleaner, highly optimized keyframe animations with fewer points.</p>
+          </div>
+        </div>
+
+        <!-- SECTION: SHAPE MODE (Visible in Shape Mode) -->
+        <div id="shape-settings" class="space-y-4 hidden">
+          <h3 class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Vector Shapes</h3>
+          
+          <!-- Shape Tools Grid -->
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="setShapeTool('rect')" id="shape-rect-btn" class="flex items-center gap-2 p-2 text-xs font-medium rounded border border-indigo-500 bg-indigo-950/20 text-indigo-400">
+              <i data-lucide="square" class="w-4 h-4"></i> Rectangle
+            </button>
+            <button onclick="setShapeTool('circle')" id="shape-circle-btn" class="flex items-center gap-2 p-2 text-xs font-medium rounded border border-gray-800 hover:border-gray-700 text-gray-300">
+              <i data-lucide="circle" class="w-4 h-4"></i> Circle
+            </button>
+            <button onclick="setShapeTool('triangle')" id="shape-tri-btn" class="flex items-center gap-2 p-2 text-xs font-medium rounded border border-gray-800 hover:border-gray-700 text-gray-300">
+              <i data-lucide="triangle" class="w-4 h-4"></i> Triangle
+            </button>
+            <button onclick="setShapeTool('line')" id="shape-line-btn" class="flex items-center gap-2 p-2 text-xs font-medium rounded border border-gray-800 hover:border-gray-700 text-gray-300">
+              <i data-lucide="minus" class="w-4 h-4"></i> Line
+            </button>
+          </div>
+
+          <!-- Color settings (same as draw, linked programmatically) -->
+          <div class="space-y-2">
+            <label class="text-xs text-gray-400">Stroke/Fill Color</label>
+            <div id="shape-color-indicator" class="flex items-center gap-2 p-2 rounded bg-gray-950 border border-gray-800">
+              <div class="w-6 h-6 rounded bg-indigo-500 border border-gray-700" id="shape-color-preview"></div>
+              <span id="shape-color-text" class="mono text-xs text-gray-300">#6366f1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION: REFERENCE IMAGES (Visible in Ref Edit Mode) -->
+        <div id="ref-settings" class="space-y-4 hidden">
+          <h3 class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Reference Backdrop</h3>
+          
+          <div class="border-2 border-dashed border-gray-800 rounded-lg p-4 text-center hover:border-indigo-500/50 transition relative group cursor-pointer">
+            <input type="file" id="ref-image-input" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleImageUpload(event)">
+            <i data-lucide="upload" class="w-6 h-6 text-gray-500 group-hover:text-indigo-400 mx-auto mb-2"></i>
+            <span class="text-xs font-semibold text-gray-300 block">Upload Backdrop</span>
+            <span class="text-[10px] text-gray-500 block mt-1">PNG, JPG or SVG</span>
+          </div>
+
+          <div id="ref-properties" class="space-y-3 p-3 bg-gray-950 rounded-lg border border-gray-800 hidden">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-semibold text-gray-300">Transform Settings</span>
+              <button onclick="clearReferenceImage()" class="text-rose-400 hover:text-rose-300 text-xs flex items-center gap-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear
+              </button>
+            </div>
+            
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs text-gray-400">
+                <span>Opacity</span>
+                <span id="ref-opacity-val" class="mono">50%</span>
+              </div>
+              <input type="range" id="ref-opacity-slider" min="0" max="100" value="50" oninput="updateRefOpacity(this.value)" class="w-full accent-indigo-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <p class="text-[10px] text-gray-500 leading-relaxed italic border-t border-gray-800/60 pt-2">
+              💡 <strong>Interaction Hint:</strong> Click & drag the background reference image directly on the canvas to move it. Scroll your mouse wheel or pinch to resize.
+            </p>
+          </div>
+        </div>
+
+        <!-- SECTION: ANIMATION CONTROLS (Visible in Anim Mode) -->
+        <div id="anim-settings" class="space-y-4 hidden">
+          <h3 class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Animation Keyframing</h3>
+          
+          <div class="bg-indigo-950/20 border border-indigo-900/60 rounded-lg p-3 space-y-2.5">
+            <div class="text-xs font-semibold text-indigo-400 flex items-center gap-1">
+              <i data-lucide="info" class="w-4 h-4"></i> Keyframe Engine Instructions
+            </div>
+            <p class="text-[11px] text-gray-300 leading-relaxed">
+              1. Select any stroke or shape on the canvas using the click tool.<br>
+              2. Position the playhead scrubber on the timeline.<br>
+              3. Modify properties (Position/Scale/Rotation) below or drag on canvas.<br>
+              4. Tap <strong>"Insert Keyframe"</strong> to register.
+            </p>
+          </div>
+
+          <!-- Active Object Selected Information -->
+          <div id="anim-selected-properties" class="space-y-3 p-3 bg-gray-950 rounded-lg border border-gray-800">
+            <div class="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+              <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span>Target Object Status</span>
+            </div>
+            
+            <!-- Selection indicator -->
+            <div id="no-selection-msg" class="text-xs text-gray-500 italic py-1">
+              No target selected. Click any line/shape on the canvas to start animating.
+            </div>
+
+            <div id="selection-controls" class="space-y-3 hidden">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-gray-400">Object Type:</span>
+                <span id="selected-type-badge" class="font-semibold text-indigo-400 bg-indigo-950/50 border border-indigo-800/50 px-2 py-0.5 rounded uppercase text-[10px]">Brush Stroke</span>
+              </div>
+
+              <!-- Manual Transform inputs -->
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] text-gray-500 block">Scale X & Y</label>
+                  <input type="number" step="0.1" value="1.0" id="anim-scale-input" oninput="applyManualTransform()" class="w-full bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs mono text-indigo-300">
+                </div>
+                <div>
+                  <label class="text-[10px] text-gray-500 block">Angle (Deg)</label>
+                  <input type="number" step="5" value="0" id="anim-rot-input" oninput="applyManualTransform()" class="w-full bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs mono text-indigo-300">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] text-gray-500 block">Offset X</label>
+                  <input type="number" step="1" value="0" id="anim-offsetx-input" oninput="applyManualTransform()" class="w-full bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs mono text-indigo-300">
+                </div>
+                <div>
+                  <label class="text-[10px] text-gray-500 block">Offset Y</label>
+                  <input type="number" step="1" value="0" id="anim-offsety-input" oninput="applyManualTransform()" class="w-full bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs mono text-indigo-300">
+                </div>
+              </div>
+
+              <div class="flex gap-2 pt-2">
+                <button onclick="insertKeyframeAtCurrent()" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded text-xs transition flex items-center justify-center gap-1">
+                  <i data-lucide="key" class="w-3.5 h-3.5"></i> Keyframe Property
+                </button>
+                <button onclick="deleteKeyframeAtCurrent()" class="p-1.5 bg-gray-800 hover:bg-gray-700 text-rose-400 rounded transition" title="Clear Keyframe">
+                  <i data-lucide="key-round" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Layer list & Cleanup Section -->
+      <div class="p-4 border-t border-gray-800 bg-gray-950/60 space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Canvas Layers</span>
+          <span id="layer-count" class="mono text-xs bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded">0</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="clearCanvas()" class="flex-1 py-1.5 bg-rose-950/30 hover:bg-rose-950/70 border border-rose-900/60 text-rose-300 text-xs font-medium rounded transition flex items-center justify-center gap-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear Layers
+          </button>
+          <button onclick="undo()" class="p-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 transition" title="Undo Last Object">
+            <i data-lucide="undo" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Canvas Workspace Viewport & Editing Stage -->
+    <main class="flex-1 flex flex-col bg-gray-950 relative overflow-hidden">
+      <!-- Status Indicators Bar -->
+      <div class="bg-gray-900 border-b border-gray-800 px-6 py-2.5 flex items-center justify-between text-xs shrink-0">
+        <div class="flex items-center space-x-4">
+          <span class="flex items-center gap-1.5 text-gray-300">
+            <i data-lucide="compass" class="w-4 h-4 text-indigo-400"></i>
+            Active Canvas Tool: <span class="font-bold text-white capitalize" id="status-current-tool">Brush</span>
+          </span>
+          <span class="text-gray-600">|</span>
+          <span class="text-gray-400 flex items-center gap-1">
+            <i data-lucide="move" class="w-4 h-4 text-gray-500"></i>
+            Canvas Transform: <span id="canvas-zoom-status" class="mono">100%</span> Zoom
+          </span>
+        </div>
+        <!-- Tips / Warnings -->
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 italic" id="status-helper-msg">Hold Spacebar + Drag to pan your canvas around.</span>
+          <button onclick="resetCanvasTransform()" class="text-[10px] bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded">Reset Zoom</button>
+        </div>
+      </div>
+
+      <!-- Canvas Area viewport (Handles panning) -->
+      <div id="canvas-container" class="flex-1 checkerboard relative overflow-hidden cursor-crosshair">
+        <!-- Actual Canvas Element -->
+        <canvas id="paint-canvas" class="absolute shadow-2xl transition-shadow shadow-black/60 bg-transparent"></canvas>
+      </div>
+
+      <!-- BOTTOM BAR: ANIMATION TIMELINE AND FPS CONTROLS -->
+      <footer class="bg-gray-900 border-t border-gray-800 flex flex-col shrink-0">
+        <!-- Playback toolbar -->
+        <div class="flex items-center justify-between px-6 py-3 border-b border-gray-800/80 bg-gray-950/20">
+          <div class="flex items-center space-x-4">
+            <!-- Play Controls -->
+            <div class="flex items-center space-x-1">
+              <button onclick="prevFrame()" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition" title="Previous Frame">
+                <i data-lucide="skip-back" class="w-4 h-4"></i>
+              </button>
+              <button id="play-pause-btn" onclick="togglePlay()" class="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition shadow-lg shadow-indigo-600/20" title="Play / Pause">
+                <i id="play-icon" data-lucide="play" class="w-4 h-4"></i>
+              </button>
+              <button onclick="nextFrame()" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition" title="Next Frame">
+                <i data-lucide="skip-forward" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Loop Option -->
+            <label class="flex items-center space-x-2 cursor-pointer text-xs text-gray-300 select-none">
+              <input type="checkbox" id="loop-toggle" checked class="rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+              <span>Loop Playback</span>
+            </label>
+
+            <!-- Interpolation Style -->
+            <div class="flex items-center space-x-2 text-xs">
+              <span class="text-gray-400">Interpolation:</span>
+              <select id="easing-select" class="bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1 focus:ring-indigo-500">
+                <option value="linear">Linear (Lerp)</option>
+                <option value="easeInOut">Ease In Out</option>
+                <option value="step">Step (No Interpolation)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Timeline Metrics -->
+          <div class="flex items-center space-x-5 text-xs">
+            <div class="flex items-center space-x-2">
+              <span class="text-gray-400">Time:</span>
+              <span id="timeline-time-val" class="mono text-indigo-400 font-bold">0.00s</span>
+              <span class="text-gray-600">/</span>
+              <span id="timeline-total-val" class="mono text-gray-400">2.00s</span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <span class="text-gray-400">Target Duration:</span>
+              <input type="number" id="timeline-duration-input" step="0.5" min="0.5" max="10" value="2.0" oninput="updateTimelineDuration(this.value)" class="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-xs text-center mono text-indigo-300">
+              <span class="text-gray-400">s</span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <span class="text-gray-400">Target FPS:</span>
+              <input type="number" id="timeline-fps-input" min="5" max="120" value="30" oninput="updateFPS(this.value)" class="w-14 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-xs text-center mono text-indigo-300">
+            </div>
+          </div>
+        </div>
+
+        <!-- TIMELINE SCRUBBER CONTAINER -->
+        <div class="px-6 py-4 bg-gray-950/40 select-none">
+          <div class="relative pt-1">
+            <!-- Timeline Rulers -->
+            <div id="timeline-ruler" class="w-full h-5 flex justify-between text-[9px] text-gray-500 font-mono relative border-b border-gray-800 mb-2">
+              <!-- Dynamically populated via JS -->
+            </div>
+
+            <!-- Interactivity tracks -->
+            <div class="relative w-full h-8 bg-gray-900 border border-gray-800 rounded-lg overflow-visible">
+              
+              <!-- Keyframe Marks Overlay Track -->
+              <div id="keyframe-dots-container" class="absolute inset-0 overflow-visible pointer-events-auto">
+                <!-- Dot elements representing active object keyframes will be drawn here -->
+              </div>
+
+              <!-- Time scrub bar handler -->
+              <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.1" oninput="onScrubberInput(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20">
+              
+              <!-- Custom Scrubber Visual Playhead Line -->
+              <div id="playhead-line" class="absolute top-0 bottom-0 w-1 bg-red-500 pointer-events-none z-10 transition-transform duration-75">
+                <div class="absolute -top-1 -left-1.5 w-4 h-4 bg-red-500 border border-white rounded-full shadow shadow-red-500/50"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- IMPORT / EXPORT CODE MODAL -->
+  <div id="import-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl flex flex-col space-y-4 max-h-[80vh]">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="braces" class="text-indigo-400 w-5 h-5"></i>
+          Import Drawing Dataset
+        </h3>
+        <button onclick="closeImportModal()" class="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <p class="text-xs text-gray-400">
+        Paste a previously exported AnimateJS JSON string configuration here. It will fully rebuild all layers, complex vector curves, and customized property keyframes.
+      </p>
+
+      <textarea id="import-text-area" placeholder='{"metadata":{"appName":"AnimateJS"},"objects":[]...}' class="flex-1 bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs mono text-emerald-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[300px]"></textarea>
+
+      <div class="flex justify-end space-x-3">
+        <button onclick="closeImportModal()" class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium rounded transition">
+          Cancel
+        </button>
+        <button onclick="processImport()" class="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded transition">
+          Reconstruct Project
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP & TUTORIAL MODAL -->
+  <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl max-w-xl w-full p-6 shadow-2xl flex flex-col space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="help-circle" class="text-indigo-400 w-5 h-5"></i>
+          Quick Start Guide
+        </h3>
+        <button onclick="closeHelpModal()" class="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-gray-300 overflow-y-auto max-h-[60vh] pr-2">
+        <div class="space-y-1">
+          <h4 class="font-bold text-white text-sm">💡 Working with Keyframes</h4>
+          <p class="text-gray-400">To animate, toggle onto <strong class="text-indigo-400">Animation Mode</strong>, select any stroke, position the timeline playhead scrubber to any timing, change its location/scale using manual inputs, and hit <strong class="text-emerald-400">Keyframe Property</strong>. Move the scrubber and repeat to generate linear interpolated translations!</p>
+        </div>
+        
+        <div class="space-y-1">
+          <h4 class="font-bold text-white text-sm">🖼️ Backdrop Reference Control</h4>
+          <p class="text-gray-400">Upload backdrop layouts in <strong class="text-indigo-400">Ref Edit Mode</strong>. Rotate and translate your reference templates. When you switch back to <strong class="text-emerald-400">Draw Mode</strong>, they automatically lock, ensuring uninterrupted drawings.</p>
+        </div>
+
+        <div class="space-y-1">
+          <h4 class="font-bold text-white text-sm">🎮 Use in Games</h4>
+          <p class="text-gray-400 font-semibold text-indigo-300">The structure is engineered to look like this in your game code loops:</p>
+          <pre class="bg-gray-950 p-2.5 rounded border border-gray-800 mono text-[11px] text-emerald-400 leading-relaxed">
+// Simple Lerping inside update cycle:
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+// Get current value at 'time' between Keyframes</pre>
+        </div>
+
+        <div class="space-y-1">
+          <h4 class="font-bold text-white text-sm">⌨️ Hotkeys & Shortcuts</h4>
+          <ul class="list-disc pl-4 space-y-1 text-gray-400">
+            <li><strong class="text-white">Spacebar (Hold)</strong>: Pan and position canvas workspace</li>
+            <li><strong class="text-white">Mouse Wheel</strong>: Dynamic zoom and scale</li>
+            <li><strong class="text-white">Ctrl + Z</strong>: Quick undo action</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeHelpModal()" class="px-5 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded transition">
+          Let's Draw!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN SCRIPT MODULE -->
+  <script>
+    // --- GLOBAL VARIABLES & SYSTEM SETUP ---
+    let currentMode = 'draw'; // 'draw', 'shape', 'ref', 'anim'
+    let currentTool = 'brush'; // 'brush', 'eraser'
+    let currentShapeTool = 'rect'; // 'rect', 'circle', 'triangle', 'line'
+    
+    // Canvas dimensions (will scale and render internal logical grid of 1920x1080 for exact coordinates exporting)
+    const VIRTUAL_WIDTH = 1920;
+    const VIRTUAL_HEIGHT = 1080;
+    
+    // Zoom & Pan Workspace state
+    let zoomLevel = 0.55; // Fit inside workspace cleanly by default
+    let panOffset = { x: 120, y: 50 };
+    let isPanning = false;
+    let startPanPoint = { x: 0, y: 0 };
+    let holdSpace = false;
+
+    // Drawing variables
+    let isDrawing = false;
+    let brushColor = '#6366f1';
+    let brushSize = 8;
+    let currentStroke = null;
+
+    // Shape Drawing variables
+    let isDrawingShape = false;
+    let shapeStartPos = null;
+    let previewShape = null;
+
+    // Backdrop Reference variable
+    let referenceImage = null; // { img: ImageElement, x, y, width, height, scale, rotation, opacity }
+    let isDraggingRef = false;
+    let startDragRefPos = { x: 0, y: 0 };
+
+    // Selection System for Animation Mode
+    let selectedObjectId = null;
+    let isDraggingSelectedObject = false;
+    let dragOffset = { x: 0, y: 0 };
+
+    // Animation & Playback States
+    let playheadTime = 0.0; // Current time in seconds
+    let totalDuration = 2.0; // In seconds
+    let fps = 30;
+    let isPlaying = false;
+    let lastAnimFrameTime = 0;
+    let loopPlayback = true;
+
+    // STORAGE: Primary Object Database
+    // Each drawing element has: id, type ('stroke' | 'shape'), points[] (if stroke), color, size, shapeType (if shape), width/height (if shape),
+    // and keyframes: { position: [ {t, x, y} ], scale: [ {t, s} ], rotation: [ {t, r} ] }
+    let canvasObjects = [];
+    let undoHistory = [];
+
+    // References to DOM Elements
+    const canvas = document.getElementById('paint-canvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    // --- APPLICATION BOOTSTRAP ---
+    window.onload = function() {
+      // Setup Initial Canvas DOM boundaries
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Register Lucide icons
+      lucide.createIcons();
+
+      // Keyboard Listeners
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+
+      // Canvas Interactive Event Listeners
+      canvas.addEventListener('mousedown', onCanvasMouseDown);
+      canvas.addEventListener('mousemove', onCanvasMouseMove);
+      window.addEventListener('mouseup', onCanvasMouseUp);
+      container.addEventListener('wheel', onCanvasWheel, { passive: false });
+
+      // Init Timeline Visual tracks
+      renderTimelineRulers();
+      updatePlayheadVisuals();
+      
+      // Select first tool style parameters visually
+      setBrushColor(brushColor);
+      updateBrushSize(brushSize);
+
+      // Kick off core render drawing ticks
+      requestAnimationFrame(runSystemRenderLoop);
+    };
+
+    // Rescale & position absolute canvas bounding frame
+    function resizeCanvas() {
+      canvas.width = VIRTUAL_WIDTH;
+      canvas.height = VIRTUAL_HEIGHT;
+      renderAll();
+    }
+
+    // --- MODE & TOOL SWITCHING CONTROLS ---
+    function setMode(mode) {
+      currentMode = mode;
+      
+      // Update sidebar highlight selectors
+      const buttons = {
+        'draw': document.getElementById('mode-draw-btn'),
+        'shape': document.getElementById('mode-shape-btn'),
+        'ref': document.getElementById('mode-ref-btn'),
+        'anim': document.getElementById('mode-anim-btn')
+      };
+
+      Object.keys(buttons).forEach(key => {
+        if (!buttons[key]) return;
+        if (key === mode) {
+          buttons[key].className = "flex flex-col items-center justify-center p-3 rounded-lg border-2 border-indigo-600 bg-indigo-950/40 text-indigo-400 transition";
+        } else {
+          buttons[key].className = "flex flex-col items-center justify-center p-3 rounded-lg border-2 border-transparent bg-gray-800/50 text-gray-400 hover:text-gray-200 transition";
+        }
+      });
+
+      // Show/Hide relevant controls sections
+      document.getElementById('draw-settings').classList.toggle('hidden', mode !== 'draw');
+      document.getElementById('shape-settings').classList.toggle('hidden', mode !== 'shape');
+      document.getElementById('ref-settings').classList.toggle('hidden', mode !== 'ref');
+      document.getElementById('anim-settings').classList.toggle('hidden', mode !== 'anim');
+
+      // Setup status string helpers
+      let helpMessage = "Use primary clicks to edit.";
+      if (mode === 'draw') {
+        currentTool = 'brush';
+        document.getElementById('status-current-tool').innerText = "Smooth Freehand Brush";
+        helpMessage = "Click and drag to sketch freehand shapes directly on the layer.";
+      } else if (mode === 'shape') {
+        document.getElementById('status-current-tool').innerText = `Vector ${currentShapeTool.toUpperCase()}`;
+        helpMessage = "Click and drag diagonally to draw shape outlines on-canvas.";
+      } else if (mode === 'ref') {
+        document.getElementById('status-current-tool').innerText = "Reference Backdrop Editor";
+        helpMessage = "Drag references, wheel to scale, or rotate directly in edit state.";
+      } else if (mode === 'anim') {
+        document.getElementById('status-current-tool').innerText = "Keyframe Interpolator System";
+        helpMessage = "Select shapes, move time, change properties, insert keyframes.";
+      }
+      
+      document.getElementById('status-helper-msg').innerText = helpMessage;
+      
+      // Redraw selection helpers and keyframe marks
+      updateKeyframeTimelineDots();
+      updateSelectedObjectInfo();
+      renderAll();
+    }
+
+    function setDrawingTool(tool) {
+      currentTool = tool;
+      document.getElementById('tool-brush-btn').className = tool === 'brush' ? "flex-1 py-1.5 text-xs font-medium text-center rounded bg-gray-800 text-white" : "flex-1 py-1.5 text-xs font-medium text-center rounded text-gray-400 hover:text-white";
+      document.getElementById('tool-eraser-btn').className = tool === 'eraser' ? "flex-1 py-1.5 text-xs font-medium text-center rounded bg-gray-800 text-white" : "flex-1 py-1.5 text-xs font-medium text-center rounded text-gray-400 hover:text-white";
+      document.getElementById('status-current-tool').innerText = tool === 'brush' ? "Smooth Freehand Brush" : "Eraser Stroke Tool";
+    }
+
+    function setBrushColor(hex) {
+      brushColor = hex;
+      document.getElementById('color-hex').innerText = hex;
+      document.getElementById('shape-color-text').innerText = hex;
+      document.getElementById('shape-color-preview').style.backgroundColor = hex;
+      document.getElementById('brush-color-picker').value = hex;
+    }
+
+    function updateBrushSize(size) {
+      brushSize = parseInt(size);
+      document.getElementById('brush-size-val').innerText = `${size}px`;
+    }
+
+    function setShapeTool(tool) {
+      currentShapeTool = tool;
+      const tools = ['rect', 'circle', 'triangle', 'line'];
+      tools.forEach(t => {
+        const btn = document.getElementById(`shape-${t}-btn`);
+        if (t === tool) {
+          btn.className = "flex items-center gap-2 p-2 text-xs font-medium rounded border border-indigo-500 bg-indigo-950/20 text-indigo-400";
+        } else {
+          btn.className = "flex items-center gap-2 p-2 text-xs font-medium rounded border border-gray-800 hover:border-gray-700 text-gray-300";
+        }
+      });
+      document.getElementById('status-current-tool').innerText = `Vector ${tool.toUpperCase()}`;
+    }
+
+    // --- KEYBOARD & MOUSE SHORTCUTS ---
+    function handleKeyDown(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (e.code === 'Space') {
+        holdSpace = true;
+        container.style.cursor = 'grab';
+        e.preventDefault();
+      }
+
+      // Undo shortcut: Ctrl + Z
+      if (e.ctrlKey && e.code === 'KeyZ') {
+        undo();
+        e.preventDefault();
+      }
+    }
+
+    function handleKeyUp(e) {
+      if (e.code === 'Space') {
+        holdSpace = false;
+        container.style.cursor = 'crosshair';
+      }
+    }
+
+    // --- VIEWPORT MOUSE ACTIONS (PAN & ZOOM & TRANSFORM) ---
+    function onCanvasWheel(e) {
+      e.preventDefault();
+      const zoomIntensity = 0.05;
+      
+      // Calculate cursor position in relative space before scaling
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const scaleChange = e.deltaY < 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
+      const newZoom = Math.max(0.15, Math.min(3.0, zoomLevel * scaleChange));
+
+      // Re-anchor panning point so zoom scales smoothly into mouse coordinates
+      panOffset.x = mouseX - (mouseX - panOffset.x) * (newZoom / zoomLevel);
+      panOffset.y = mouseY - (mouseY - panOffset.y) * (newZoom / zoomLevel);
+      
+      zoomLevel = newZoom;
+      document.getElementById('canvas-zoom-status').innerText = `${Math.round(zoomLevel * 100)}%`;
+      renderAll();
+    }
+
+    function resetCanvasTransform() {
+      zoomLevel = 0.55;
+      panOffset = { x: 120, y: 50 };
+      document.getElementById('canvas-zoom-status').innerText = '55%';
+      renderAll();
+    }
+
+    // --- MAP WINDOW PIXELS TO LOGICAL CANVAS GRID (1920x1080) ---
+    function getLogicalCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      // Map screen coords into real Virtual space dimensions
+      const relativeX = (clientX - rect.left) * (VIRTUAL_WIDTH / rect.width);
+      const relativeY = (clientY - rect.top) * (VIRTUAL_HEIGHT / rect.height);
+      return { x: Math.round(relativeX), y: Math.round(relativeY) };
+    }
+
+    // --- COMPRESS/SIMPLIFY STROKE ARRAYS ---
+    // Ramer-Douglas-Peucker algorithm implementation to clean points data paths
+    function simplifyPath(points, tolerance) {
+      if (points.length <= 2) return points;
+      let dmax = 0;
+      let index = 0;
+      const end = points.length - 1;
+
+      for (let i = 1; i < end; i++) {
+        const d = getOrthogonalDistance(points[i], points[0], points[end]);
+        if (d > dmax) {
+          index = i;
+          dmax = d;
+        }
+      }
+
+      if (dmax > tolerance) {
+        const results1 = simplifyPath(points.slice(0, index + 1), tolerance);
+        const results2 = simplifyPath(points.slice(index), tolerance);
+        return results1.slice(0, results1.length - 1).concat(results2);
+      } else {
+        return [points[0], points[end]];
+      }
+    }
+
+    function getOrthogonalDistance(p, p1, p2) {
+      const num = Math.abs((p2.y - p1.y) * p.x - (p2.x - p1.x) * p.y + p2.x * p1.y - p2.y * p1.x);
+      const den = Math.sqrt(Math.pow(p2.y - p1.y, 2) + Math.pow(p2.x - p1.x, 2));
+      return den === 0 ? 0 : num / den;
+    }
+
+    // --- PRIMARY INTERACTIVE DOWN MOUSE EVENT ---
+    function onCanvasMouseDown(e) {
+      const pos = getLogicalCoordinates(e);
+
+      // Workspace panning state checking
+      if (holdSpace || e.button === 1) {
+        isPanning = true;
+        container.style.cursor = 'grabbing';
+        startPanPoint = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+        return;
+      }
+
+      // 🔵 MODE: REFERENCE EDIT
+      if (currentMode === 'ref' && referenceImage) {
+        // Test if user clicked near reference bounding center
+        const dx = pos.x - referenceImage.x;
+        const dy = pos.y - referenceImage.y;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        
+        if (distance < (referenceImage.width * referenceImage.scale) / 2) {
+          isDraggingRef = true;
+          startDragRefPos = { x: pos.x - referenceImage.x, y: pos.y - referenceImage.y };
+          return;
+        }
+      }
+
+      // 🟣 MODE: ANIMATION SELECTION & DRAGGING
+      if (currentMode === 'anim') {
+        const clickedObj = findObjectAt(pos.x, pos.y);
+        if (clickedObj) {
+          selectedObjectId = clickedObj.id;
+          isDraggingSelectedObject = true;
+          
+          // Compute logical dynamic position for rendering reference
+          const currentPos = getInterpolatedProps(clickedObj, playheadTime);
+          dragOffset = { x: pos.x - currentPos.x, y: pos.y - currentPos.y };
+          
+          updateSelectedObjectInfo();
+          renderAll();
+          return;
+        } else {
+          // Clicked empty space: clear selection
+          selectedObjectId = null;
+          updateSelectedObjectInfo();
+          renderAll();
+        }
+      }
+
+      // 🟢 MODE: FREEHAND DRAW
+      if (currentMode === 'draw') {
+        isDrawing = true;
+        const widthVal = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+        const colorVal = currentTool === 'eraser' ? 'eraser' : brushColor;
+
+        currentStroke = {
+          id: 'stroke_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          type: 'stroke',
+          color: colorVal,
+          size: widthVal,
+          points: [ { x: pos.x, y: pos.y } ],
+          keyframes: {
+            position: [{ t: 0.0, x: 0, y: 0 }],
+            scale: [{ t: 0.0, x: 1.0, y: 1.0 }],
+            rotation: [{ t: 0.0, r: 0 }]
+          }
+        };
+        return;
+      }
+
+      // 🟡 MODE: VECTOR SHAPE CREATION
+      if (currentMode === 'shape') {
+        isDrawingShape = true;
+        shapeStartPos = pos;
+        previewShape = {
+          id: 'shape_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          type: 'shape',
+          shapeType: currentShapeTool,
+          color: brushColor,
+          size: brushSize,
+          x: pos.x,
+          y: pos.y,
+          w: 0,
+          h: 0,
+          keyframes: {
+            position: [{ t: 0.0, x: 0, y: 0 }],
+            scale: [{ t: 0.0, x: 1.0, y: 1.0 }],
+            rotation: [{ t: 0.0, r: 0 }]
+          }
+        };
+        return;
+      }
+    }
+
+    // --- PRIMARY INTERACTIVE MOVE MOUSE EVENT ---
+    function onCanvasMouseMove(e) {
+      const pos = getLogicalCoordinates(e);
+
+      // Handle viewport workspace pan translations
+      if (isPanning) {
+        panOffset.x = e.clientX - startPanPoint.x;
+        panOffset.y = e.clientY - startPanPoint.y;
+        renderAll();
+        return;
+      }
+
+      // Handle Reference Edit transformations
+      if (isDraggingRef && referenceImage) {
+        referenceImage.x = pos.x - startDragRefPos.x;
+        referenceImage.y = pos.y - startDragRefPos.y;
+        renderAll();
+        return;
+      }
+
+      // Handle Animation Object Translations
+      if (isDraggingSelectedObject && selectedObjectId) {
+        const obj = canvasObjects.find(o => o.id === selectedObjectId);
+        if (obj) {
+          // Dragging changes the coordinates of the base drawing layer
+          // or registers as a dynamic keyframe transformation on top
+          const newPosX = pos.x - dragOffset.x;
+          const newPosY = pos.y - dragOffset.y;
+
+          // Write / Update local time keyframe position translate parameters
+          updateKeyframeProperty(obj, 'position', { x: newPosX, y: newPosY });
+          
+          updateSelectedObjectInfo();
+          renderAll();
+        }
+        return;
+      }
+
+      // Handle Freehand drawing brush point collection
+      if (isDrawing && currentStroke) {
+        const lastPt = currentStroke.points[currentStroke.points.length - 1];
+        // Only register if moved slightly to keep performance snappy
+        const dist = Math.hypot(pos.x - lastPt.x, pos.y - lastPt.y);
+        if (dist > 2) {
+          currentStroke.points.push({ x: pos.x, y: pos.y });
+          renderAll();
+        }
+        return;
+      }
+
+      // Handle Shape Layout resizing on drag
+      if (isDrawingShape && previewShape) {
+        if (currentShapeTool === 'line') {
+          previewShape.w = pos.x - shapeStartPos.x;
+          previewShape.h = pos.y - shapeStartPos.y;
+        } else {
+          previewShape.w = pos.x - shapeStartPos.x;
+          previewShape.h = pos.y - shapeStartPos.y;
+        }
+        renderAll();
+        return;
+      }
+    }
+
+    // --- PRIMARY INTERACTIVE UP MOUSE EVENT ---
+    function onCanvasMouseUp(e) {
+      if (isPanning) {
+        isPanning = false;
+        container.style.cursor = holdSpace ? 'grab' : 'crosshair';
+        return;
+      }
+
+      if (isDraggingRef) {
+        isDraggingRef = false;
+        return;
+      }
+
+      if (isDraggingSelectedObject) {
+        isDraggingSelectedObject = false;
+        return;
+      }
+
+      // Complete drawing path and apply optimization routines
+      if (isDrawing && currentStroke) {
+        isDrawing = false;
+        
+        // Fetch simplify slider threshold
+        const tolerance = parseFloat(document.getElementById('simplify-slider').value);
+        const originalCount = currentStroke.points.length;
+        
+        // Run points reducer
+        currentStroke.points = simplifyPath(currentStroke.points, tolerance);
+        
+        // Save to active Database
+        canvasObjects.push(currentStroke);
+        pushHistory();
+        
+        currentStroke = null;
+        updateLayerDisplayCount();
+        renderAll();
+        return;
+      }
+
+      // Complete vector shapes
+      if (isDrawingShape && previewShape) {
+        isDrawingShape = false;
+        
+        // Add to array only if it has a size signature
+        if (Math.abs(previewShape.w) > 4 || Math.abs(previewShape.h) > 4) {
+          canvasObjects.push(previewShape);
+          pushHistory();
+        }
+        
+        previewShape = null;
+        updateLayerDisplayCount();
+        renderAll();
+        return;
+      }
+    }
+
+    // --- OBJECT INDEX SEARCH ---
+    // Finds if coordinate sits within canvas vector models
+    function findObjectAt(x, y) {
+      // Loop backward to favor top layer clicks
+      for (let i = canvasObjects.length - 1; i >= 0; i--) {
+        const obj = canvasObjects[i];
+        const props = getInterpolatedProps(obj, playheadTime);
+
+        if (obj.type === 'shape') {
+          // Translate target point relative to virtual interpolated coordinates
+          const dx = x - props.x;
+          const dy = y - props.y;
+          
+          if (obj.shapeType === 'rect') {
+            const rx = obj.w >= 0 ? 0 : obj.w;
+            const ry = obj.h >= 0 ? 0 : obj.h;
+            const rw = Math.abs(obj.w) * props.scaleX;
+            const rh = Math.abs(obj.h) * props.scaleY;
+            if (dx >= rx && dx <= rx + rw && dy >= ry && dy <= ry + rh) {
+              return obj;
+            }
+          } else if (obj.shapeType === 'circle') {
+            const radius = Math.max(Math.abs(obj.w), Math.abs(obj.h)) / 2;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist <= radius * Math.max(props.scaleX, props.scaleY)) {
+              return obj;
+            }
+          } else if (obj.shapeType === 'triangle' || obj.shapeType === 'line') {
+            // Treat as broad bounding box click
+            const minX = Math.min(0, obj.w) - 10;
+            const maxX = Math.max(0, obj.w) + 10;
+            const minY = Math.min(0, obj.h) - 10;
+            const maxY = Math.max(0, obj.h) + 10;
+            if (dx >= minX && dx <= maxX && dy >= minY && dy <= maxY) {
+              return obj;
+            }
+          }
+        } else if (obj.type === 'stroke') {
+          // Check proximity to stroke points
+          for (let p of obj.points) {
+            const ptX = p.x + props.x;
+            const ptY = p.y + props.y;
+            const dist = Math.hypot(x - ptX, y - ptY);
+            if (dist <= Math.max(12, obj.size * 1.5)) {
+              return obj;
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    // --- TIMELINE INTERPOLATION CONTROLLER (LERP & EASING) ---
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function easeInOutQuad(t) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    // Extracts interpolated Position, scale and rotation attributes at any point in time
+    function getInterpolatedProps(obj, time) {
+      const position = interpolateProperty(obj.keyframes.position, time, { x: 0, y: 0 });
+      const scale = interpolateProperty(obj.keyframes.scale, time, { x: 1.0, y: 1.0 });
+      const rotation = interpolateProperty(obj.keyframes.rotation, time, { r: 0 });
+
+      return {
+        x: position.x,
+        y: position.y,
+        scaleX: scale.x,
+        scaleY: scale.y,
+        rotation: rotation.r
+      };
+    }
+
+    // General property interpolator mapping keys array
+    function interpolateProperty(keyframes, time, defaultValue) {
+      if (!keyframes || keyframes.length === 0) return defaultValue;
+      
+      // Sort keyframes by trigger time
+      keyframes.sort((a, b) => a.t - b.t);
+
+      // Handle Out-Of-Bounds
+      if (time <= keyframes[0].t) return keyframes[0];
+      if (time >= keyframes[keyframes.length - 1].t) return keyframes[keyframes.length - 1];
+
+      // Scan and locate bounding interval pair
+      for (let i = 0; i < keyframes.length - 1; i++) {
+        const kA = keyframes[i];
+        const kB = keyframes[i + 1];
+
+        if (time >= kA.t && time <= kB.t) {
+          // Calculate interval segment ratio
+          let factor = (time - kA.t) / (kB.t - kA.t);
+
+          // Easing mapping option check
+          const interpolationMode = document.getElementById('easing-select').value;
+          if (interpolationMode === 'easeInOut') {
+            factor = easeInOutQuad(factor);
+          } else if (interpolationMode === 'step') {
+            return kA; // Holds keyframe until next block
+          }
+
+          // Return lerped properties based on fields present
+          const result = {};
+          for (let key in kA) {
+            if (key === 't') continue;
+            result[key] = lerp(kA[key], kB[key], factor);
+          }
+          return result;
+        }
+      }
+
+      return defaultValue;
+    }
+
+    // --- UPDATE KEYFRAME TRANSFORMS FROM CODE / CONTROLS ---
+    function updateKeyframeProperty(obj, property, values) {
+      let keys = obj.keyframes[property];
+      if (!keys) {
+        keys = [];
+        obj.keyframes[property] = keys;
+      }
+
+      // Check if keyframe already exists exactly on current playhead scrubber timing
+      const existingKeyIdx = keys.findIndex(k => Math.abs(k.t - playheadTime) < 0.05);
+
+      if (existingKeyIdx !== -1) {
+        // Update values inline
+        Object.assign(keys[existingKeyIdx], values);
+        keys[existingKeyIdx].t = playheadTime; // align perfectly
+      } else {
+        // Create new keyframe record
+        const newKey = { t: playheadTime, ...values };
+        keys.push(newKey);
+      }
+
+      // Re-sort keys by timing
+      keys.sort((a, b) => a.t - b.t);
+      updateKeyframeTimelineDots();
+    }
+
+    // Insert manual input scale and rotation variables
+    function applyManualTransform() {
+      if (!selectedObjectId) return;
+      const obj = canvasObjects.find(o => o.id === selectedObjectId);
+      if (!obj) return;
+
+      const scaleVal = parseFloat(document.getElementById('anim-scale-input').value) || 1.0;
+      const rotVal = parseFloat(document.getElementById('anim-rot-input').value) || 0;
+      const offsetX = parseFloat(document.getElementById('anim-offsetx-input').value) || 0;
+      const offsetY = parseFloat(document.getElementById('anim-offsety-input').value) || 0;
+
+      updateKeyframeProperty(obj, 'position', { x: offsetX, y: offsetY });
+      updateKeyframeProperty(obj, 'scale', { x: scaleVal, y: scaleVal });
+      updateKeyframeProperty(obj, 'rotation', { r: rotVal * Math.PI / 180 }); // Convert to radians
+
+      renderAll();
+    }
+
+    function insertKeyframeAtCurrent() {
+      if (!selectedObjectId) return;
+      applyManualTransform();
+    }
+
+    function deleteKeyframeAtCurrent() {
+      if (!selectedObjectId) return;
+      const obj = canvasObjects.find(o => o.id === selectedObjectId);
+      if (!obj) return;
+
+      // Filter out keyframe values sitting directly under scrubber timing
+      const props = ['position', 'scale', 'rotation'];
+      props.forEach(p => {
+        if (obj.keyframes[p]) {
+          obj.keyframes[p] = obj.keyframes[p].filter(k => Math.abs(k.t - playheadTime) >= 0.05);
+          // Always guarantee at least one default fallback remains
+          if (obj.keyframes[p].length === 0) {
+            if (p === 'position') obj.keyframes[p] = [{ t: 0, x: 0, y: 0 }];
+            if (p === 'scale') obj.keyframes[p] = [{ t: 0, x: 1, y: 1 }];
+            if (p === 'rotation') obj.keyframes[p] = [{ t: 0, r: 0 }];
+          }
+        }
+      });
+
+      updateSelectedObjectInfo();
+      updateKeyframeTimelineDots();
+      renderAll();
+    }
+
+    // --- TIMELINE CONTROLS & FPS PLAYBACK ENGINE ---
+    function updateFPS(val) {
+      fps = Math.max(5, Math.min(120, parseInt(val) || 30));
+    }
+
+    function updateTimelineDuration(val) {
+      totalDuration = Math.max(0.5, Math.min(10.0, parseFloat(val) || 2.0));
+      document.getElementById('timeline-total-val').innerText = `${totalDuration.toFixed(2)}s`;
+      renderTimelineRulers();
+      
+      // Make sure playhead is capped at max bounds
+      if (playheadTime > totalDuration) {
+        setPlayheadTime(totalDuration);
+      }
+    }
+
+    function setPlayheadTime(time) {
+      playheadTime = Math.max(0.0, Math.min(totalDuration, time));
+      document.getElementById('timeline-time-val').innerText = `${playheadTime.toFixed(2)}s`;
+      
+      const percent = (playheadTime / totalDuration) * 100;
+      document.getElementById('timeline-scrubber').value = percent;
+      
+      updatePlayheadVisuals();
+      updateSelectedObjectInfo();
+      renderAll();
+    }
+
+    function onScrubberInput(percentValue) {
+      const targetTime = (parseFloat(percentValue) / 100) * totalDuration;
+      setPlayheadTime(targetTime);
+    }
+
+    function updatePlayheadVisuals() {
+      const containerWidth = document.getElementById('timeline-ruler').clientWidth;
+      const leftOffset = (playheadTime / totalDuration) * containerWidth;
+      document.getElementById('playhead-line').style.transform = `translateX(${leftOffset}px)`;
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('play-pause-btn');
+      const icon = document.getElementById('play-icon');
+      
+      if (isPlaying) {
+        lastAnimFrameTime = performance.now();
+        btn.className = "p-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full transition shadow-lg shadow-rose-600/20";
+        icon.setAttribute('data-lucide', 'pause');
+      } else {
+        btn.className = "p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition shadow-lg shadow-indigo-600/20";
+        icon.setAttribute('data-lucide', 'play');
+      }
+      lucide.createIcons();
+    }
+
+    function prevFrame() {
+      const dt = 1 / fps;
+      setPlayheadTime(playheadTime - dt);
+    }
+
+    function nextFrame() {
+      const dt = 1 / fps;
+      setPlayheadTime(playheadTime + dt);
+    }
+
+    // Generate timeline ruler mark bars dynamically
+    function renderTimelineRulers() {
+      const container = document.getElementById('timeline-ruler');
+      container.innerHTML = '';
+      
+      const stepCount = 10;
+      for (let i = 0; i <= stepCount; i++) {
+        const t = (i / stepCount) * totalDuration;
+        const mark = document.createElement('div');
+        mark.className = "flex flex-col items-center justify-between h-full";
+        mark.innerHTML = `
+          <span class="h-2 w-px bg-gray-700"></span>
+          <span>${t.toFixed(1)}s</span>
+        `;
+        container.appendChild(mark);
+      }
+    }
+
+    // Refresh display dots of current selection
+    function updateKeyframeTimelineDots() {
+      const container = document.getElementById('keyframe-dots-container');
+      container.innerHTML = '';
+      if (currentMode !== 'anim' || !selectedObjectId) return;
+
+      const obj = canvasObjects.find(o => o.id === selectedObjectId);
+      if (!obj) return;
+
+      // Group all unified distinct timestamps for markers rendering
+      const timestamps = new Set();
+      const props = ['position', 'scale', 'rotation'];
+      props.forEach(p => {
+        if (obj.keyframes[p]) {
+          obj.keyframes[p].forEach(k => timestamps.add(Math.round(k.t * 100) / 100));
+        }
+      });
+
+      const trackWidth = container.clientWidth;
+      timestamps.forEach(t => {
+        const leftPercent = (t / totalDuration) * 100;
+        if (leftPercent < 0 || leftPercent > 100) return;
+
+        const dot = document.createElement('div');
+        dot.className = "absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-emerald-400 border-2 border-gray-900 rounded-full transform -translate-x-1/2 shadow-md hover:scale-125 hover:bg-white cursor-pointer z-10 transition-transform";
+        dot.style.left = `${leftPercent}%`;
+        dot.title = `Keyframe at ${t}s`;
+        
+        // Clicking a keyframe jumps the timeline head directly onto it
+        dot.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          setPlayheadTime(t);
+        });
+
+        container.appendChild(dot);
+      });
+    }
+
+    // Update Transform manual input fields
+    function updateSelectedObjectInfo() {
+      const containerNoSel = document.getElementById('no-selection-msg');
+      const containerSel = document.getElementById('selection-controls');
+
+      if (!selectedObjectId || currentMode !== 'anim') {
+        containerNoSel.classList.remove('hidden');
+        containerSel.classList.add('hidden');
+        return;
+      }
+
+      const obj = canvasObjects.find(o => o.id === selectedObjectId);
+      if (!obj) {
+        containerNoSel.classList.remove('hidden');
+        containerSel.classList.add('hidden');
+        return;
+      }
+
+      containerNoSel.classList.add('hidden');
+      containerSel.classList.remove('hidden');
+
+      // Update Header Type String Badge
+      const typeBadge = document.getElementById('selected-type-badge');
+      if (obj.type === 'shape') {
+        typeBadge.innerText = `${obj.shapeType} Shape`;
+        typeBadge.className = "font-semibold text-pink-400 bg-pink-950/50 border border-pink-800/50 px-2 py-0.5 rounded uppercase text-[10px]";
+      } else {
+        typeBadge.innerText = "Brush Stroke";
+        typeBadge.className = "font-semibold text-indigo-400 bg-indigo-950/50 border border-indigo-800/50 px-2 py-0.5 rounded uppercase text-[10px]";
+      }
+
+      // Fetch dynamic interpolated position info
+      const props = getInterpolatedProps(obj, playheadTime);
+
+      document.getElementById('anim-scale-input').value = props.scaleX.toFixed(2);
+      document.getElementById('anim-rot-input').value = Math.round(props.rotation * 180 / Math.PI);
+      document.getElementById('anim-offsetx-input').value = Math.round(props.x);
+      document.getElementById('anim-offsety-input').value = Math.round(props.y);
+    }
+
+    // --- REFERENCE IMAGE DRAG & DROP HANDLING ---
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          // Initialize backdrop centered scale calculations
+          const initialWidth = img.width > 800 ? 800 : img.width;
+          const ratio = img.height / img.width;
+          
+          referenceImage = {
+            img: img,
+            x: VIRTUAL_WIDTH / 2,
+            y: VIRTUAL_HEIGHT / 2,
+            width: initialWidth,
+            height: initialWidth * ratio,
+            scale: 1.0,
+            rotation: 0,
+            opacity: 0.5
+          };
+
+          document.getElementById('ref-properties').classList.remove('hidden');
+          document.getElementById('ref-opacity-slider').value = 50;
+          document.getElementById('ref-opacity-val').innerText = '50%';
+          renderAll();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateRefOpacity(val) {
+      if (!referenceImage) return;
+      referenceImage.opacity = parseFloat(val) / 100;
+      document.getElementById('ref-opacity-val').innerText = `${val}%`;
+      renderAll();
+    }
+
+    function clearReferenceImage() {
+      referenceImage = null;
+      document.getElementById('ref-image-input').value = '';
+      document.getElementById('ref-properties').classList.add('hidden');
+      renderAll();
+    }
+
+    // --- SYSTEM LOOP DRIVER CONTROLLER ---
+    function runSystemRenderLoop(timestamp) {
+      if (isPlaying) {
+        const elapsed = (timestamp - lastAnimFrameTime) / 1000;
+        lastAnimFrameTime = timestamp;
+
+        let nextTime = playheadTime + elapsed;
+        if (nextTime > totalDuration) {
+          if (loopPlayback) {
+            nextTime = 0.0;
+          } else {
+            nextTime = totalDuration;
+            togglePlay(); // Pause
+          }
+        }
+        setPlayheadTime(nextTime);
+      } else {
+        lastAnimFrameTime = timestamp;
+      }
+
+      requestAnimationFrame(runSystemRenderLoop);
+    }
+
+    // --- DRAWING GRAPHICS ENGINE RENDER PIPELINE ---
+    function renderAll() {
+      // Clear viewport visual bounds
+      ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+      // Apply zoom & translation matrices to workspace parent element directly
+      // This is superior as it guarantees viewport panning remains smooth without redrawing textures
+      const canvasContainer = document.getElementById('paint-canvas');
+      canvasContainer.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`;
+      canvasContainer.style.transformOrigin = 'top left';
+
+      // 1. Draw Background Reference templates
+      if (referenceImage) {
+        ctx.save();
+        ctx.globalAlpha = referenceImage.opacity;
+        ctx.translate(referenceImage.x, referenceImage.y);
+        ctx.rotate(referenceImage.rotation);
+        
+        const w = referenceImage.width * referenceImage.scale;
+        const h = referenceImage.height * referenceImage.scale;
+        ctx.drawImage(referenceImage.img, -w/2, -h/2, w, h);
+        
+        // Show selection dotted border helper only in Reference Edit Mode
+        if (currentMode === 'ref') {
+          ctx.strokeStyle = '#6366f1';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([8, 8]);
+          ctx.strokeRect(-w/2 - 4, -h/2 - 4, w + 8, h + 8);
+        }
+        ctx.restore();
+      }
+
+      // 2. Draw Vector Objects DB Array
+      canvasObjects.forEach(obj => {
+        drawObject(obj);
+      });
+
+      // 3. Draw Active Stroke Vector in real-time
+      if (currentStroke) {
+        drawObject(currentStroke);
+      }
+
+      // 4. Draw Active Shape Tool preview bounds
+      if (previewShape) {
+        drawObject(previewShape);
+      }
+    }
+
+    // Unified Vector Drawing Routine
+    function drawObject(obj) {
+      ctx.save();
+      
+      // Calculate active transformation matrices mapping interpolated keyframe properties
+      const props = getInterpolatedProps(obj, playheadTime);
+
+      ctx.translate(props.x, props.y);
+      ctx.rotate(props.rotation);
+      ctx.scale(props.scaleX, props.scaleY);
+
+      // Check for Highlight Selector ring around animated targets
+      const isSelected = selectedObjectId === obj.id && currentMode === 'anim';
+      if (isSelected) {
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 15;
+      }
+
+      if (obj.type === 'stroke') {
+        // Freehand render logic
+        if (obj.points.length > 0) {
+          ctx.beginPath();
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = obj.size;
+
+          if (obj.color === 'eraser') {
+            ctx.strokeStyle = '#030712'; // Render back as background overlay
+          } else {
+            ctx.strokeStyle = obj.color;
+          }
+
+          // Use quadratic curves smoothing lines calculation
+          ctx.moveTo(obj.points[0].x - props.x, obj.points[0].y - props.y);
+          
+          if (obj.points.length === 1) {
+            ctx.lineTo(obj.points[0].x - props.x, obj.points[0].y - props.y);
+          } else {
+            let i;
+            for (i = 1; i < obj.points.length - 2; i++) {
+              const xc = ((obj.points[i].x - props.x) + (obj.points[i + 1].x - props.x)) / 2;
+              const yc = ((obj.points[i].y - props.y) + (obj.points[i + 1].y - props.y)) / 2;
+              ctx.quadraticCurveTo(obj.points[i].x - props.x, obj.points[i].y - props.y, xc, yc);
+            }
+            // Curve to last point
+            if (obj.points.length > 2) {
+              ctx.quadraticCurveTo(
+                obj.points[i].x - props.x, 
+                obj.points[i].y - props.y, 
+                obj.points[i + 1].x - props.x, 
+                obj.points[i + 1].y - props.y
+              );
+            }
+          }
+          ctx.stroke();
+        }
+      } 
+      else if (obj.type === 'shape') {
+        // Shapes render logic
+        ctx.lineWidth = obj.size;
+        ctx.strokeStyle = obj.color;
+        ctx.fillStyle = obj.color + '44'; // Semi-transparent fill
+
+        // Coordinates calculations from virtual pivot origin
+        const startX = 0; 
+        const startY = 0; 
+
+        if (obj.shapeType === 'rect') {
+          ctx.beginPath();
+          ctx.rect(startX, startY, obj.w, obj.h);
+          ctx.fill();
+          ctx.stroke();
+        } 
+        else if (obj.shapeType === 'circle') {
+          ctx.beginPath();
+          const radius = Math.max(Math.abs(obj.w), Math.abs(obj.h)) / 2;
+          ctx.arc(startX + obj.w / 2, startY + obj.h / 2, radius, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        } 
+        else if (obj.shapeType === 'triangle') {
+          ctx.beginPath();
+          ctx.moveTo(startX + obj.w / 2, startY);
+          ctx.lineTo(startX, startY + obj.h);
+          ctx.lineTo(startX + obj.w, startY + obj.h);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } 
+        else if (obj.shapeType === 'line') {
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(startX + obj.w, startY + obj.h);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // --- UNDO HISTORY SYSTEM ---
+    function pushHistory() {
+      // Serialize to maintain perfect cloned deep values states references
+      undoHistory.push(JSON.stringify(canvasObjects));
+      if (undoHistory.length > 30) {
+        undoHistory.shift();
+      }
+    }
+
+    function undo() {
+      if (undoHistory.length > 0) {
+        const lastState = undoHistory.pop();
+        canvasObjects = JSON.parse(lastState);
+        selectedObjectId = null;
+        updateSelectedObjectInfo();
+        updateLayerDisplayCount();
+        renderAll();
+      }
+    }
+
+    function clearCanvas() {
+      pushHistory();
+      canvasObjects = [];
+      selectedObjectId = null;
+      updateLayerDisplayCount();
+      renderAll();
+    }
+
+    function updateLayerDisplayCount() {
+      document.getElementById('layer-count').innerText = canvasObjects.length;
+    }
+
+    // --- LIGHTWEIGHT EXPORT & IMPORT UTILITIES ---
+    function exportData() {
+      // Optimized clean schema exports
+      const exportObject = {
+        metadata: {
+          appName: "AnimateJS Studio",
+          exportDate: new Date().toISOString(),
+          totalObjects: canvasObjects.length,
+          canvasDimensions: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
+          engineRuntimeInfo: { totalDuration, targetFps: fps }
+        },
+        objects: canvasObjects.map(obj => {
+          // Exclude any reference image details as they are strictly background traces
+          const cleanObj = {
+            id: obj.id,
+            type: obj.type,
+            color: obj.color,
+            size: obj.size,
+            keyframes: obj.keyframes
+          };
+
+          if (obj.type === 'stroke') {
+            // Compress points: truncate float coordinates to single-digit integers for lower payload weights
+            cleanObj.points = obj.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+          } else if (obj.type === 'shape') {
+            cleanObj.shapeType = obj.shapeType;
+            cleanObj.x = Math.round(obj.x);
+            cleanObj.y = Math.round(obj.y);
+            cleanObj.w = Math.round(obj.w);
+            cleanObj.h = Math.round(obj.h);
+          }
+
+          return cleanObj;
+        })
+      };
+
+      const jsonString = JSON.stringify(exportObject, null, 2);
+      
+      // Auto-populate into Clipboard
+      document.getElementById('import-text-area').value = jsonString;
+      openImportModal();
+      
+      // Attempt copy to clipboard
+      try {
+        const textArea = document.getElementById('import-text-area');
+        textArea.select();
+        document.execCommand('copy');
+        
+        // Notify with custom modal message instead of alerts
+        document.getElementById('status-helper-msg').innerText = "✅ JSON animation configuration copied to clipboard successfully!";
+      } catch (err) {
+        console.warn("Clipboard access denied or unsupported.");
+      }
+    }
+
+    function openImportModal() {
+      document.getElementById('import-modal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+      document.getElementById('import-modal').classList.add('hidden');
+    }
+
+    function openHelpModal() {
+      document.getElementById('help-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('help-modal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeHelpModal();
+      }
+    });
+
+    document.getElementById('import-modal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeImportModal();
+      }
+    });
+
+    function closeHelpModal() {
+      document.getElementById('help-modal').classList.add('hidden');
+    }
+
+    function processImport() {
+      const dataString = document.getElementById('import-text-area').value;
+      try {
+        const parsed = JSON.parse(dataString);
+        if (!parsed.objects || !Array.isArray(parsed.objects)) {
+          throw new Error("Invalid schema structure: 'objects' property not found.");
+        }
+
+        pushHistory();
+        
+        // Re-inject properties mapping
+        canvasObjects = parsed.objects;
+        
+        // Match duration and frame counts if present in metadata
+        if (parsed.metadata && parsed.metadata.engineRuntimeInfo) {
+          totalDuration = parsed.metadata.engineRuntimeInfo.totalDuration || 2.0;
+          fps = parsed.metadata.engineRuntimeInfo.targetFps || 30;
+          
+          document.getElementById('timeline-duration-input').value = totalDuration;
+          document.getElementById('timeline-fps-input').value = fps;
+          document.getElementById('timeline-total-val').innerText = `${totalDuration.toFixed(2)}s`;
+        }
+
+        selectedObjectId = null;
+        updateSelectedObjectInfo();
+        updateLayerDisplayCount();
+        renderTimelineRulers();
+        closeImportModal();
+        renderAll();
+
+        document.getElementById('status-helper-msg').innerText = "📂 Reconstructed canvas vector frames from JSON successfully.";
+      } catch (err) {
+        alert("Parser Failure: " + err.message + ". Check your string formatting and try again.");
+      }
+    }
+  </script>
+</body>
+</html>
